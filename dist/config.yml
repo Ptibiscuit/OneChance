@@ -1,8 +1,0 @@
-config:
-    lives:
-        default: 1
-bdd:
-    host: desticraft.nitroserv.net
-    login: root
-    password: 'destimYSQLr00t'
-    database: 'desticraft'
