@@ -1,0 +1,10 @@
+name: OneChance
+main: com.ptibiscuit.onechance.OneChance
+version: 0.2
+description: Extreme survivals, muhahahaha !
+authors:
+- Ptibiscuit
+commands:
+ ocbuy:
+  description: Achete une vie.
+  usage: /ocbuy
