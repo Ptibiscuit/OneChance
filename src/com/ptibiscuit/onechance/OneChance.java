@@ -1,9 +1,5 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-package com.ptibiscuit.onechance;
-
+ package com.ptibiscuit.onechance;
+ 
 import com.iCo6.system.Account;
 import com.iCo6.system.Holdings;
 import com.ptibiscuit.framework.JavaPluginEnhancer;
@@ -17,152 +13,132 @@ import java.util.Properties;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
-import org.bukkit.event.Event.Priority;
-import org.bukkit.event.Event.Type;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.util.config.Configuration;
+ 
+ public class OneChance extends JavaPluginEnhancer
+ {
+   private DataHandler data;
+   private PlayerManager pm = new PlayerManager();
+   private EntityManager em = new EntityManager();
+   private static OneChance instance;
+ 
+   public void onConfigurationDefault(FileConfiguration c)
+   {
+     c.set("bdd.host", "localhost");
+     c.set("bdd.login", "root");
+     c.set("bdd.password", "");
+     c.set("bdd.database", "");
+     c.set("config.lives.default", Integer.valueOf(1));
+     c.set("config.buy_live.price", Integer.valueOf(500));
+   }
+ 
+   public void onLangDefault(Properties p)
+   {
+     p.setProperty("kick_message", "Votre âme s'en va dans les limbes ...");
+     p.setProperty("cant_do", "Vous ne pouvez pas faire a");
+     p.setProperty("boy_confirm", "Vous avez acheter une vie pour {MONEY} !");
+     p.setProperty("cant_afford", "Vous n'avez pas assez d'argent.");
+   }
+ 
+   public void onDisable()
+   {
+   }
+ 
+   public void onEnable()
+   {
+     instance = this;
+     setup(ChatColor.RED + "[OneChance]", "onechance", true);
+     this.myLog.startFrame();
+     this.myLog.addInFrame(getDescription().getFullName() + " by Ptibiscuit");
+     this.myLog.addCompleteLineInFrame();
+ 
+     FileConfiguration c = getConfig();
+ 
+     this.data = new MysqlDataHandler(c.getConfigurationSection("bdd"));
+ 
+     if (this.data.checkActivity())
+     {
+       this.myLog.addInFrame("Data loaded !", true);
+     }
+     else
+     {
+       this.myLog.addInFrame("Failed to load data.", false);
+     }
+     if (setupIconomy())
+     {
+       this.myLog.addInFrame("iConomy loaded !", true);
+     }
+     else
+     {
+       this.myLog.addInFrame("Cant load iConomy, that's not important, but ... ='(", false);
+     }
+ 
+     PluginManager pgm = getServer().getPluginManager();
+     pgm.registerEvents(this.em, this);
+	  pgm.registerEvents(this.pm, this);
+ 
+     this.myLog.displayFrame(false);
+   }
+ 
+   public boolean setupIconomy() {
+     Plugin p = getServer().getPluginManager().getPlugin("iConomy");
+ 
+     return p != null;
+   }
+ 
+   public DataHandler getDataHandler()
+   {
+     return this.data;
+   }
+ 
+   public static OneChance getInstance() {
+     return instance;
+   }
+ 
+   public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
+   {
+     if (!(sender instanceof Player))
+       return false;
+     Player p = (Player)sender;
+     if (label.equalsIgnoreCase("ocbuy"))
+     {
+       if (!this.permissionHandler.has(p, "buy", false))
+       {
+         sendPreMessage(sender, "cant_do");
+         return true;
+       }
+       Holdings holdings = new Account(p.getName()).getHoldings();
+       int price = getConfig().getInt("config.buy_live.price", 0);
+       if (holdings.getBalance().doubleValue() >= price)
+       {
+         holdings.subtract(price);
+         Stats stats = getDataHandler().getStats(p.getName());
+         getDataHandler().updateStats(stats.getName(), stats.getLives() + 1);
+         sendMessage(sender, getSentence("boy_confirm").replace("{MONEY}", String.valueOf(price)));
+       }
+       else
+       {
+         sendPreMessage(sender, "cant_afford");
+       }
+     }
+     return true;
+   }
+ 
+   public boolean checkPlayer(Player p, Stats s)
+   {
+     return canPlay(s);
+   }
+ 
+   public boolean canPlay(Stats s)
+   {
+     return s.getLives() > 0;
+   }
+ }
 
-/**
- *
- * @author ANNA
+/* Location:           C:\Users\ANNA\Documents\Frederic\netbeanspace\OneChance\dist\OneChance.jar
+ * Qualified Name:     com.ptibiscuit.onechance.OneChance
+ * JD-Core Version:    0.6.0
  */
-public class OneChance extends JavaPluginEnhancer {
-	private DataHandler data;
-	private PlayerManager pm = new PlayerManager();
-	private EntityManager em = new EntityManager();
-	private static OneChance instance;
-
-	
-	@Override
-	public void onConfigurationDefault(Configuration c) {
-		c.setProperty("bdd.host", "localhost");
-		c.setProperty("bdd.login", "root");
-		c.setProperty("bdd.password", "");
-		c.setProperty("bdd.database", "");
-		c.setProperty("config.lives.default", 1);
-		c.setProperty("config.buy_live.price", 500);
-	}
-
-	@Override
-	public void onLangDefault(Properties p) {
-		p.setProperty("kick_message", "Votre âme s'en va dans les limbes ...");
-		p.setProperty("cant_do", "Vous ne pouvez pas faire a");
-		p.setProperty("boy_confirm", "Vous avez acheter une vie pour {MONEY} !");
-		p.setProperty("cant_afford", "Vous n'avez pas assez d'argent.");
-	}
-
-	@Override
-	public void onDisable() {
-	}
-
-	@Override
-	public void onEnable() {
-		instance = this;
-		this.setup("OneChance", ChatColor.RED + "[OneChance]", "onechance.", true);
-		this.myLog.startFrame();
-		
-		if (this.getServer().getIp().equalsIgnoreCase("serveur.rpg-craft.fr"))
-		{
-			this.myLog.addInFrame("Ais-je vraiment envie de fonctionner ?");
-			this.myLog.displayFrame(false);
-			return;
-		}
-		
-		this.myLog.addInFrame(this.getDescription().getFullName() + " by Ptibiscuit");
-		this.myLog.addCompleteLineInFrame();
-		
-		Configuration c = this.getConfiguration();
-		
-		this.data = new MysqlDataHandler(c.getNode("bdd"));
-		
-		if (data.checkActivity())
-		{
-			this.myLog.addInFrame("Data loaded !", true);
-		}
-		else
-		{
-			this.myLog.addInFrame("Failed to load data.", false);
-		}
-		if (this.setupIconomy())
-		{
-			this.myLog.addInFrame("iConomy loaded !", true);
-		}
-		else
-		{
-			this.myLog.addInFrame("Cant load iConomy, that's not important, but ... ='(", false);
-		}
-		
-		PluginManager pgm = this.getServer().getPluginManager();
-		pgm.registerEvent(Type.PLAYER_LOGIN, pm, Priority.Normal, this);
-		pgm.registerEvent(Type.ENTITY_DEATH, em, Priority.Normal, this);
-		
-		this.myLog.displayFrame(false);
-	}
-	public boolean setupIconomy()
-	{
-		Plugin p = this.getServer().getPluginManager().getPlugin("iConomy");
-		if (p != null)
-		{
-			return true;
-		}
-		return false;
-	}
-	
-	public DataHandler getDataHandler() {
-		return data;
-	}
-	
-	public static OneChance getInstance() {
-		return instance;
-	}
-
-	@Override
-	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-		if (!(sender instanceof Player))
-			return false;
-		Player p = (Player) sender;
-		if (label.equalsIgnoreCase("ocbuy"))
-		{
-			if (!PermissionHelper.has(p, "onechance.buy", false))
-			{
-				this.sendPreMessage(sender, "cant_do");
-				return true;
-			}
-			Holdings holdings = (new Account(p.getName())).getHoldings();
-			int price = this.getConfiguration().getInt("config.buy_live.price", 0);
-			if (holdings.getBalance() >= price)
-			{
-				holdings.subtract(price);
-				Stats stats = this.getDataHandler().getStats(p.getName());
-				this.getDataHandler().updateStats(stats.getName(), stats.getLives() + 1);
-				this.sendMessage(sender, this.getSentence("boy_confirm").replace("{MONEY}", String.valueOf(price)));
-			}
-			else
-			{
-				this.sendPreMessage(sender, "cant_afford");
-			}
-		}
-		
-		return true;
-	}
-	
-	public boolean checkPlayer(Player p, Stats s)
-	{
-		if (!this.canPlay(s))
-		{
-			return false;
-		}
-		return true;
-	}
-	
-	public boolean canPlay(Stats s)
-	{
-		if (s.getLives() <= 0)
-			return false;
-		
-		return true;
-	}
-}

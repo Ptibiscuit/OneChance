@@ -1,6 +1,7 @@
 name: OneChance
 main: com.ptibiscuit.onechance.OneChance
-version: 0.2
+version: 0.6
+depend: [PluginsBaker]
 description: Extreme survivals, muhahahaha !
 authors:
 - Ptibiscuit
